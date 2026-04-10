@@ -168,7 +168,7 @@ if "resultado" in st.session_state:
         if "❌" in str(val): return 'background-color: #c62828; color: white'
         return ''
 
-    styled_df = df_resultados.style.applymap(color_rows, subset=['Estado'])
+    styled_df = df_resultados.style.map(color_rows, subset=['Estado'])
     st.dataframe(styled_df, use_container_width=True)
 
     st.download_button(
