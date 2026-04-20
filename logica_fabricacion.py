@@ -364,8 +364,28 @@ def calcular_armables(excel_file, inventario) -> dict:
         except (ValueError, TypeError):
             pass
 
-        if es_ensamblaje and viga_val and viga_val.lower() != 'nan':
-            ultima_viga = viga_val
+        if es_ensamblaje:
+            nombre_col2 = str(row[2]).strip() if pd.notna(row[2]) else ""
+            nombre_col1 = str(row[1]).strip() if pd.notna(row[1]) else ""
+            
+            # Algunos proyectistas ponen el nombre en Col C (2), otros en Col B (1)
+            # Priorizamos Col 2 si no es numérico ni vacío (ej. "C1", "C2")
+            # Si Col 2 está vacío o es un número puro, usamos Col 1 (ej "V-112")
+            if nombre_col2 and nombre_col2.lower() != 'nan':
+                # Validar que no sea un simple número de cantidad
+                is_num = False
+                try:
+                    float(nombre_col2)
+                    is_num = True
+                except ValueError:
+                    pass
+                if not is_num:
+                    ultima_viga = nombre_col2
+                elif nombre_col1 and nombre_col1.lower() != 'nan':
+                    ultima_viga = nombre_col1
+            elif nombre_col1 and nombre_col1.lower() != 'nan':
+                ultima_viga = nombre_col1
+                
             cantidades_conjunto_pedidas[ultima_viga] = cant_conj_pedida
                 
         if re_pieza_critica.match(pos_val) and cant_pos > 0:
