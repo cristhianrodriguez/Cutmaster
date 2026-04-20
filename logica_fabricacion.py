@@ -352,17 +352,21 @@ def calcular_armables(excel_file, inventario) -> dict:
         except (ValueError, TypeError):
             cant_pos = 0.0
             
-        # Actualizamos la viga "en foco" si no está vacía o si repite (a veces es NaN)
-        if viga_val and viga_val.lower() != 'nan' and 'peso' not in viga_val.lower() and viga_val != ultima_viga:
-            if '-' in viga_val or 'C-' in viga_val or 'V-' in viga_val: # Heurística suave
-                ultima_viga = viga_val
-                try:
-                    # Tratar de leer Col 0 para saber la cantidad total de conjuntos pedidos
-                    cant_conj_pedida = float(row[0])
-                    if cant_conj_pedida > 0:
-                        cantidades_conjunto_pedidas[ultima_viga] = cant_conj_pedida
-                except (ValueError, TypeError):
-                    pass
+        # Detectar si esta línea es la cabecera de un ensamblaje
+        # Regla robusta: Col 0 es numérico (cantidad pedida) y Col 3 (posición) está vacía
+        es_ensamblaje = False
+        try:
+            cant_pedida_raw = float(row[0])
+            pos_val_lower = pos_val.lower()
+            if cant_pedida_raw > 0 and (pos_val_lower == 'nan' or pos_val_lower == ''):
+                es_ensamblaje = True
+                cant_conj_pedida = cant_pedida_raw
+        except (ValueError, TypeError):
+            pass
+
+        if es_ensamblaje and viga_val and viga_val.lower() != 'nan':
+            ultima_viga = viga_val
+            cantidades_conjunto_pedidas[ultima_viga] = cant_conj_pedida
                 
         if re_pieza_critica.match(pos_val) and cant_pos > 0:
             requerimientos_conjunto[ultima_viga][pos_val] += cant_pos
