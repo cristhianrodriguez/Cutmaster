@@ -35,7 +35,7 @@ st.markdown("Sube los archivos del proyecto para verificar qué ensamblajes (Vig
 st.sidebar.header("📥 Carga de Archivos")
 excel_file    = st.sidebar.file_uploader("1️⃣ Lista de Cómputo (Excel BOM)", type=['xlsx', 'xlsm', 'csv'])
 csv_files     = st.sidebar.file_uploader("2️⃣ CSV de Airtable (Cortes)", type=['csv'], accept_multiple_files=True)
-nesting_files = st.sidebar.file_uploader("3️⃣ Nesting (Lantek PDF o CSV)", type=['pdf', 'csv'], accept_multiple_files=True)
+nesting_files = st.sidebar.file_uploader("3️⃣ Nesting (Lantek PDF o CSV) [Opcional]", type=['pdf', 'csv'], accept_multiple_files=True)
 
 st.sidebar.markdown("---")
 modo_impresion = st.sidebar.toggle(
@@ -84,10 +84,10 @@ tema = {
 
 # ── Botón procesar (solo guarda datos en session_state) ─────────────────────
 if st.sidebar.button("Procesar Archivos", type="primary"):
-    if not excel_file or not csv_files or not nesting_files:
-        st.error("Por favor, sube los tres tipos de archivo para poder realizar el cruce matemático.")
+    if not excel_file or not csv_files:
+        st.error("Por favor, sube como mínimo la Lista de Cómputo (Excel) y el CSV de Airtable.")
     else:
-        with st.spinner("Analizando archivos de Lantek y calculando inventarios..."):
+        with st.spinner("Analizando archivos y calculando inventarios..."):
             try:
                 pdf_dicts = [procesar_nesting_file(f) for f in nesting_files]
 

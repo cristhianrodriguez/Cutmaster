@@ -220,9 +220,9 @@ def generar_inventario_cortado(csv_file, pdf_dicts) -> dict:
         "Col CNC / Detalle": col_nombre_pieza,
         "Col Cant Cortada": col_cant,
         "Col Tipo de Corte": col_tipo_corte,
-        "Total Hojas PDF": sum(len(d) for d in pdf_dicts),
-        "Muestra Datos de PDF (Hoja 1)": pdf_dicts[0].get('1', {}),
-        "Raw Text Pagina 1": pdf_dicts[0].get('_raw_text_1', "Vacio"),
+        "Total Hojas PDF": sum(len(d) for d in pdf_dicts) if pdf_dicts else 0,
+        "Muestra Datos de PDF (Hoja 1)": pdf_dicts[0].get('1', {}) if pdf_dicts else {},
+        "Raw Text Pagina 1": pdf_dicts[0].get('_raw_text_1', "Vacio") if pdf_dicts else "Sin PDF aportado",
         "Resultados Validos (Cant > 0)": [],
         "Piezas Únicas Sumadas": []
     }
@@ -240,27 +240,33 @@ def generar_inventario_cortado(csv_file, pdf_dicts) -> dict:
                 continue
 
             # -------------------------------------------------------
-            # RUTA A: PIEZA ÚNICA ("Tipo de Corte" == "Pieza Unica")
+            # RUTA A: PIEZA EXPLÍCITA ("Tipo de Corte" == "Pieza Unica" o Nombre Válido)
             # El nombre de la pieza viene del campo DETALLE/CNC.
             # Se suma directamente al inventario sin cruzar con nesting.
             # -------------------------------------------------------
-            es_pieza_unica = False
+            es_pieza_explicita = False
             if col_tipo_corte and pd.notna(row[col_tipo_corte]):
                 tipo_val = str(row[col_tipo_corte]).strip().lower()
                 if 'unica' in tipo_val or 'única' in tipo_val or 'suelta' in tipo_val:
-                    es_pieza_unica = True
+                    es_pieza_explicita = True
 
-            if es_pieza_unica and col_nombre_pieza and pd.notna(row[col_nombre_pieza]):
+            pieza_raw = ""
+            if col_nombre_pieza and pd.notna(row[col_nombre_pieza]):
                 pieza_raw = str(row[col_nombre_pieza]).strip().upper()
                 if pieza_raw and pieza_raw not in ('NAN', '', '-'):
-                    # Normalizar a base (FL-4-A → FL-4)
-                    base_m = re.match(r'^([A-Z]+-\d+)', pieza_raw)
-                    pieza_key = base_m.group(1) if base_m else pieza_raw
-                    inventario[pieza_key] += cant_cortada
-                    debug_info["Piezas Únicas Sumadas"].append(
-                        f"{pieza_key} += {cant_cortada:.0f} (pieza única directa)"
-                    )
-                    continue   # No procesar por la ruta de nesting
+                    # Si tiene pinta de nombre de pieza (W-, FL-, etc.) asumimos que es pieza explícita
+                    if re.match(r'^(W|WB|FL|ST|PC|PL|C|V)-', pieza_raw) or not pdf_dicts:
+                        es_pieza_explicita = True
+
+            if es_pieza_explicita and pieza_raw and pieza_raw not in ('NAN', '', '-'):
+                # Normalizar a base (FL-4-A → FL-4)
+                base_m = re.match(r'^([A-Z]+-\d+)', pieza_raw)
+                pieza_key = base_m.group(1) if base_m else pieza_raw
+                inventario[pieza_key] += cant_cortada
+                debug_info["Piezas Únicas Sumadas"].append(
+                    f"{pieza_key} += {cant_cortada:.0f} (pieza explícita directa)"
+                )
+                continue   # No procesar por la ruta de nesting
 
             # -------------------------------------------------------
             # RUTA B: CHAPA DE NESTING (cruce con PDF/CSV Lantek)
