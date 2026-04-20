@@ -260,12 +260,18 @@ def generar_inventario_cortado(csv_file, pdf_dicts) -> dict:
 
             if es_pieza_explicita and pieza_raw and pieza_raw not in ('NAN', '', '-'):
                 # Normalizar a base (FL-4-A → FL-4)
-                base_m = re.match(r'^([A-Z]+-\d+)', pieza_raw)
-                pieza_key = base_m.group(1) if base_m else pieza_raw
-                inventario[pieza_key] += cant_cortada
-                debug_info["Piezas Únicas Sumadas"].append(
-                    f"{pieza_key} += {cant_cortada:.0f} (pieza explícita directa)"
-                )
+                piezas_encontradas = re.findall(r'([A-Z]+-\d+)', pieza_raw)
+                if piezas_encontradas:
+                    for p_base in piezas_encontradas:
+                        inventario[p_base] += cant_cortada
+                        debug_info["Piezas Únicas Sumadas"].append(
+                            f"{p_base} += {cant_cortada:.0f} (pieza explícita directa)"
+                        )
+                else:
+                    inventario[pieza_raw] += cant_cortada
+                    debug_info["Piezas Únicas Sumadas"].append(
+                        f"{pieza_raw} += {cant_cortada:.0f} (pieza explícita directa)"
+                    )
                 continue   # No procesar por la ruta de nesting
 
             # -------------------------------------------------------
@@ -598,22 +604,24 @@ def generar_recomendaciones_corte(df_resultados, pdf_dicts, csv_file_bytes=None)
             if not col_nombre_pieza:
                 col_nombre_pieza = col_cnc
                 
+            reconstruir_pdf_dicts = not pdf_dicts
+            if reconstruir_pdf_dicts:
+                pdf_dicts.append(defaultdict(dict))
+                
             for _, r in df_csv.iterrows():
                 k_cnc = str(r[col_cnc]).strip().upper().replace(" ", "") if col_cnc else ""
                 val_hoja = str(r[col_hoja]).strip() if col_hoja else ""
                 
                 # Reconstruir mapping si no existe PDF provisto (Airtable solo)
-                if not pdf_dicts:
+                if reconstruir_pdf_dicts:
                     pieza_raw = str(r[col_nombre_pieza]).strip().upper() if col_nombre_pieza and pd.notna(r[col_nombre_pieza]) else ""
                     if pieza_raw and pieza_raw not in ('NAN', '', '-'):
-                        base_m = re.match(r'^([A-Z]+-\d+)', pieza_raw)
-                        if base_m:
+                        piezas_encontradas = re.findall(r'([A-Z]+-\d+)', pieza_raw)
+                        for p_base in piezas_encontradas:
                             ref_key = k_cnc if k_cnc and k_cnc != 'NAN' else val_hoja
                             if ref_key and ref_key.lower() not in ('nan', '', 's/d'):
-                                if len(pdf_dicts) == 0:
-                                    pdf_dicts.append(defaultdict(dict))
-                                if base_m.group(1) not in pdf_dicts[0][ref_key]:
-                                    pdf_dicts[0][ref_key][base_m.group(1)] = 1.0
+                                if p_base not in pdf_dicts[0][ref_key]:
+                                    pdf_dicts[0][ref_key][p_base] = 1.0
 
                 # Check si está cortada
                 cortada = False
