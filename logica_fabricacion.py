@@ -593,10 +593,28 @@ def generar_recomendaciones_corte(df_resultados, pdf_dicts, csv_file_bytes=None)
             col_cant_cortada = next((c for c in cols if ('cortada' in str(c).lower() and 'peso' not in str(c).lower())), None)
             cols_maquinas = [c for c in cols if hasattr(c, 'startswith') and any(c.startswith(f"{i}.") for i in range(1, 10))]
             
+            # Detectar columna de nombre de pieza para reconstruir nesting si no hay PDF
+            col_nombre_pieza = next((c for c in cols if any(k in str(c).lower() for k in ['detalle', 'descripcion', 'nombre'])), None)
+            if not col_nombre_pieza:
+                col_nombre_pieza = col_cnc
+                
             for _, r in df_csv.iterrows():
                 k_cnc = str(r[col_cnc]).strip().upper().replace(" ", "") if col_cnc else ""
                 val_hoja = str(r[col_hoja]).strip() if col_hoja else ""
                 
+                # Reconstruir mapping si no existe PDF provisto (Airtable solo)
+                if not pdf_dicts:
+                    pieza_raw = str(r[col_nombre_pieza]).strip().upper() if col_nombre_pieza and pd.notna(r[col_nombre_pieza]) else ""
+                    if pieza_raw and pieza_raw not in ('NAN', '', '-'):
+                        base_m = re.match(r'^([A-Z]+-\d+)', pieza_raw)
+                        if base_m:
+                            ref_key = k_cnc if k_cnc and k_cnc != 'NAN' else val_hoja
+                            if ref_key and ref_key.lower() not in ('nan', '', 's/d'):
+                                if len(pdf_dicts) == 0:
+                                    pdf_dicts.append(defaultdict(dict))
+                                if base_m.group(1) not in pdf_dicts[0][ref_key]:
+                                    pdf_dicts[0][ref_key][base_m.group(1)] = 1.0
+
                 # Check si está cortada
                 cortada = False
                 try:
